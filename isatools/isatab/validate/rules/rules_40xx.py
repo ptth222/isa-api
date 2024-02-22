@@ -9,7 +9,10 @@ from isatools.isatab.defaults import (
     _RX_CHARACTERISTICS,
     _RX_PARAMETER_VALUE,
     _RX_FACTOR_VALUE,
-    _RX_COMMENT
+    _RX_COMMENT,
+    _LABELS_DATA_NODES,
+    _LABELS_MATERIAL_NODES,
+    _LABELS_ASSAY_NODES
 )
 
 
@@ -324,26 +327,21 @@ def load_table_checks(df, filename):
     :return: DataFrame of the study or assay table
     """
     columns = df.columns
+    # Useful sets of column labels.
+    ontology_column_labels = ['Term Source REF', 'Term Accession Number']
+    parameter_column_labels = ["Unit"] + ontology_column_labels
+    protocol_qualification_column_labels = parameter_column_labels + _LABELS_ASSAY_NODES + \
+                                           ["Array Design REF", "Performer", "Date"]
+    labeled_material_column_labels = parameter_column_labels + ["Label"]
+    # "Material Type" is handled in load before this function and converted to a characteristic.
+    recognized_column_labels = _LABELS_MATERIAL_NODES + _LABELS_DATA_NODES + _LABELS_ASSAY_NODES \
+                               + labeled_material_column_labels + \
+                               ["Protocol REF", "Array Design REF", "Performer", "Date"]
+    
     for x, column in enumerate(columns):  # check if columns have valid labels
         if _RX_INDEXED_COL.match(column):
             column = column[:column.rfind('.')]
-        if (column not in ['Source Name', 'Sample Name', 'Term Source REF',
-                           'Protocol REF', 'Term Accession Number',
-                           'Unit', 'Assay Name', 'Extract Name',
-                           'Raw Data File', 'Material Type', 'MS Assay Name', 'NMR Assay Name',
-                           'Raw Spectral Data File',
-                           'Labeled Extract Name',
-                           'Label', 'Hybridization Assay Name',
-                           'Array Design REF', 'Scan Name', 'Array Data File',
-                           'Protein Assignment File',
-                           'Peptide Assignment File',
-                           'Post Translational Modification Assignment File',
-                           'Data Transformation Name',
-                           'Derived Spectral Data File', 'Normalization Name',
-                           'Derived Array Data File', 'Image File', "Free Induction Decay Data File",
-                           'Metabolite Assignment File', "Performer", "Date", "Array Data Matrix File",
-                           'Free Induction Decay File', "Derived Array Data Matrix File",
-                           'Acquisition Parameter Data File']) \
+        if column not in recognized_column_labels \
                 and not _RX_CHARACTERISTICS.match(column) \
                 and not _RX_PARAMETER_VALUE.match(column) \
                 and not _RX_FACTOR_VALUE.match(column) \
@@ -400,16 +398,9 @@ def load_table_checks(df, filename):
             norm_columns.append(column[:column.rfind('.')])
         else:
             norm_columns.append(column)
+    object_column_labels = _LABELS_MATERIAL_NODES + _LABELS_DATA_NODES + ["Protocol REF"]
     object_index = [i for i, x in enumerate(norm_columns)
-                    if x in ['Source Name', 'Sample Name', 'Protocol REF',
-                             'Extract Name', 'Labeled Extract Name',
-                             'Raw Data File',
-                             'Raw Spectral Data File', 'Array Data File',
-                             'Protein Assignment File',
-                             'Peptide Assignment File',
-                             'Post Translational Modification Assignment File',
-                             'Derived Spectral Data File',
-                             'Derived Array Data File']
+                    if x in object_column_labels
                     or _RX_FACTOR_VALUE.match(x)]
     object_columns_list = list()
     prev_i = object_index[0]
@@ -420,64 +411,91 @@ def load_table_checks(df, filename):
             object_columns_list.append(norm_columns[prev_i:curr_i])
         prev_i = curr_i
     object_columns_list.append(norm_columns[prev_i:])
-
+    
     for object_columns in object_columns_list:
         prop_name = object_columns[0]
         if prop_name in ['Sample Name', 'Source Name']:
             for x, col in enumerate(object_columns[1:]):
-                if col not in ['Term Source REF', 'Term Accession Number',
-                               'Unit'] and not _RX_CHARACTERISTICS.match(col) \
+                if col not in parameter_column_labels \
+                        and not _RX_CHARACTERISTICS.match(col) \
                         and not _RX_FACTOR_VALUE.match(col) \
                         and not _RX_COMMENT.match(col):
-                    log.error("(E) Expected only Characteristics, "
-                              "Factor Values or Comments following {} "
-                              "columns but found {} at offset {}".format(prop_name, col, x + 1))
+                    spl = ("(E) Expected only Characteristics, "
+                           "Factor Values or Comments following {} "
+                           "columns but found {} at offset {} in file {}".format(prop_name, col, x + 1, filename))
+                    log.error(spl)
+                    error = {
+                        "message": "Unrecognised header",
+                        "supplemental": spl,
+                        "code": 4014
+                    }
+                    validator.add_error(**error)
         elif prop_name == 'Protocol REF':
             for x, col in enumerate(object_columns[1:]):
-                if col not in ['Term Source REF', 'Term Accession Number',
-                               'Unit', 'Assay Name',
-                               'Hybridization Assay Name', 'Array Design REF',
-                               'Scan Name'] \
+                if col not in protocol_qualification_column_labels \
                         and not _RX_PARAMETER_VALUE.match(col) \
                         and not _RX_COMMENT.match(col):
-                    log.error("(E) Unexpected column heading following {} "
-                              "column. Found {} at offset {}".format(prop_name, col, x + 1))
+                    spl = ("(E) Unexpected column heading following {} "
+                           "column. Found {} at offset {} in file {}".format(prop_name, col, x + 1, filename))
+                    log.error(spl)
+                    error = {
+                        "message": "Unrecognised header",
+                        "supplemental": spl,
+                        "code": 4014
+                    }
+                    validator.add_error(**error)
         elif prop_name == 'Extract Name':
-            if len(object_columns) > 1:
-                log.error(
-                    "Unexpected column heading(s) following {} column. "
-                    "Found {} at offset {}".format(
-                        prop_name, object_columns[1:], 2))
+            for x, col in enumerate(object_columns[1:]):
+                if col not in parameter_column_labels \
+                        and not _RX_CHARACTERISTICS.match(col) \
+                        and not _RX_COMMENT.match(col):
+                    spl = ("(E) Unexpected column heading following {} "
+                           "column. Found {} at offset {} in file {}".format(prop_name, col, x + 1, filename))
+                    log.error(spl)
+                    error = {
+                        "message": "Unrecognised header",
+                        "supplemental": spl,
+                        "code": 4014
+                    }
+                    validator.add_error(**error)
         elif prop_name == 'Labeled Extract Name':
-            if len(object_columns) > 1:
-                if object_columns[1] == 'Label':
-                    for x, col in enumerate(object_columns[2:]):
-                        if col not in ['Term Source REF',
-                                       'Term Accession Number']:
-                            log.error("(E) Unexpected column heading "
-                                      "following {} column. Found {} at "
-                                      "offset {}".format(prop_name, col, x + 1))
-                else:
-                    log.error("(E) Unexpected column heading following {} "
-                              "column. Found {} at offset {}".format(prop_name, object_columns[1:], 2))
-            else:
-                log.error("Expected Label column after Labeled Extract Name "
-                          "but none found")
-        elif prop_name in ['Raw Data File', 'Derived Spectral Data File',
-                           'Derived Array Data File', 'Array Data File',
-                           'Raw Spectral Data File', 'Protein Assignment File',
-                           'Peptide Assignment File',
-                           'Post Translational Modification Assignment File']:
+            for x, col in enumerate(object_columns[1:]):
+                if col not in labeled_material_column_labels \
+                        and not _RX_CHARACTERISTICS.match(col) \
+                        and not _RX_COMMENT.match(col):
+                    spl = ("(E) Unexpected column heading following {} "
+                           "column. Found {} at offset {} in file {}".format(prop_name, col, x + 1, filename))
+                    log.error(spl)
+                    error = {
+                        "message": "Unrecognised header",
+                        "supplemental": spl,
+                        "code": 4014
+                    }
+                    validator.add_error(**error)
+        elif prop_name in _LABELS_DATA_NODES:
             for x, col in enumerate(object_columns[1:]):
                 if not _RX_COMMENT.match(col):
-                    log.error("(E) Expected only Comments following {} "
-                              "columns but found {} at offset {}".format(prop_name, col, x + 1))
+                    spl = ("(E) Expected only Comments following {} "
+                           "columns but found {} at offset {} in file {}".format(prop_name, col, x + 1, filename))
+                    log.error(spl)
+                    error = {
+                        "message": "Unrecognised header",
+                        "supplemental": spl,
+                        "code": 4014
+                    }
+                    validator.add_error(**error)
         elif _RX_FACTOR_VALUE.match(prop_name):
-            for x, col in enumerate(object_columns[2:]):
-                if col not in ['Term Source REF', 'Term Accession Number']:
-                    log.error(
-                        "(E) Unexpected column heading following {} column. "
-                        "Found {} at offset {}".format(prop_name, col, x + 1))
+            for x, col in enumerate(object_columns[1:]):
+                if col not in parameter_column_labels:
+                    spl = ("(E) Unexpected column heading following {} column. "
+                           "Found {} at offset {} in file {}".format(prop_name, col, x + 1, filename))
+                    log.error(spl)
+                    error = {
+                        "message": "Unrecognised header",
+                        "supplemental": spl,
+                        "code": 4014
+                    }
+                    validator.add_error(**error)
         else:
             log.debug("Need to implement a rule for... " + prop_name)
             log.debug(object_columns)

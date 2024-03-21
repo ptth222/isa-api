@@ -7,7 +7,7 @@ from isatools.isatab.defaults import (
     _RX_PARAMETER_VALUE
 )
 
-from isatools.constants import _LABELS_ASSAY_NODES, _LABELS_MATERIAL_NODES, _LABELS_DATA_NODES
+from isatools.constants import ASSAY_LABELS, MATERIAL_LABELS, DATA_FILE_LABELS
 
 from isatools.model import (
     OntologyAnnotation,
@@ -31,11 +31,11 @@ def preprocess(DF):
     :return: Processed DataFrame
     """
     columns = DF.columns
-    process_node_name_indices = [x for x, y in enumerate(columns) if y in _LABELS_ASSAY_NODES]
+    process_node_name_indices = [x for x, y in enumerate(columns) if y in ASSAY_LABELS]
     missing_process_indices = list()
     protocol_ref_cols = [x for x in columns if x.startswith('Protocol REF')]
     num_protocol_refs = len(protocol_ref_cols)
-    indexes = _LABELS_MATERIAL_NODES + _LABELS_DATA_NODES + _LABELS_ASSAY_NODES + protocol_ref_cols
+    indexes = MATERIAL_LABELS + DATA_FILE_LABELS + ASSAY_LABELS + protocol_ref_cols
     all_cols_indicies = [i for i, c in enumerate(columns) if c in indexes]
 
     for i in process_node_name_indices:
@@ -150,7 +150,7 @@ class ProcessSequenceFactory:
             filenames = [x for x in DF[data_col].drop_duplicates() if x != '']
             data.update(dict(map(lambda x: (':'.join([data_col, x]), DataFile(filename=x, label=data_col)), filenames)))
 
-        node_cols = [i for i, c in enumerate(DF.columns) if c in _LABELS_MATERIAL_NODES + _LABELS_DATA_NODES]
+        node_cols = [i for i, c in enumerate(DF.columns) if c in MATERIAL_LABELS + DATA_FILE_LABELS]
         proc_cols = [i for i, c in enumerate(DF.columns) if c.startswith("Protocol REF")]
 
         try:
@@ -176,7 +176,7 @@ class ProcessSequenceFactory:
 
             object_label = column_group[0]
 
-            if object_label in _LABELS_MATERIAL_NODES:
+            if object_label in MATERIAL_LABELS:
 
                 for _, object_series in DF[column_group].drop_duplicates().iterrows():
                     node_name = str(object_series[object_label])
@@ -260,7 +260,7 @@ class ProcessSequenceFactory:
                             fv_set.add(fv)
                             material.factor_values = list(fv_set)
 
-            elif object_label in _LABELS_DATA_NODES:
+            elif object_label in DATA_FILE_LABELS:
                 for _, object_series in DF[column_group].drop_duplicates().iterrows():
                     try:
                         data_file = get_node_by_label_and_key(object_label, str(object_series[object_label]))
@@ -341,7 +341,7 @@ class ProcessSequenceFactory:
                         if input_node is not None and input_node not in process.inputs:
                             process.inputs.append(input_node)
 
-                    name_column_hits = [n for n in column_group if n in _LABELS_ASSAY_NODES]
+                    name_column_hits = [n for n in column_group if n in ASSAY_LABELS]
                     if len(name_column_hits) == 1:
                         process.name = str(object_series[name_column_hits[0]])
                     for pv_column in [c for c in column_group if c.startswith('Parameter Value[')]:

@@ -43,22 +43,6 @@ __author__ = 'brad chapman, agbeltran, djcomlab'
 # REGEXES
 _RX_COLLAPSE_ATTRIBUTE = re.compile(r"[\W]+")
 
-# column labels
-_LABELS_MATERIAL_NODES = ['Source Name', 'Sample Name', 'Extract Name',
-                          'Labeled Extract Name']
-_LABELS_DATA_NODES = ['Raw Data File', 'Derived Spectral Data File',
-                      'Derived Array Data File', 'Array Data File',
-                      'Protein Assignment File', 'Peptide Assignment File',
-                      'Post Translational Modification Assignment File',
-                      'Acquisition Parameter Data File',
-                      'Free Induction Decay Data File',
-                      'Derived Array Data Matrix File', 'Image File',
-                      'Derived Data File', 'Metabolite Assignment File']
-_LABELS_ASSAY_NODES = ['Assay Name', 'MS Assay Name', 'NMR Assay Name',
-                       'Hybridization Assay Name', 'Scan Name',
-                       'Data Transformation Name', 'Normalization Name']
-
-
 def find_lt(a, x):
     """Find rightmost value less than x"""
     i = bisect.bisect_left(a, x)

@@ -11,9 +11,9 @@ from pandas import DataFrame, Series
 from isatools.constants import (
     SYNONYMS,
     ALL_LABELS,
-    _LABELS_DATA_NODES,
-    _LABELS_ASSAY_NODES,
-    _LABELS_MATERIAL_NODES
+    DATA_FILE_LABELS,
+    ASSAY_LABELS,
+    MATERIAL_LABELS
 )
 
 from isatools.utils import utf8_text_file_open
@@ -152,7 +152,7 @@ def strip_comments(in_fp):
     for line in in_fp.readlines():
         log.debug('processing line: {}'.format(line))
         if line.lstrip().startswith('#'):
-            log.debug('stripping line:'.format(line))
+            log.debug('stripping line: {}'.format(line))
         elif len(line.strip()) > 0:
             out_fp.write(line)
     out_fp.seek(0)
@@ -181,12 +181,12 @@ def process_keygen(protocol_ref, column_group, object_label_index, all_columns, 
     :param DF: The whole table's DataFrame
     :return: The process key to disambiguate Processes
     """
-    name_column_hits = [n for n in column_group if n in _LABELS_ASSAY_NODES]
+    name_column_hits = [n for n in column_group if n in ASSAY_LABELS]
     if len(name_column_hits) == 1:
         return series[name_column_hits[0]]
 
     process_key = protocol_ref
-    node_cols = [i for i, c in enumerate(all_columns) if c in _LABELS_MATERIAL_NODES + _LABELS_DATA_NODES]
+    node_cols = [i for i, c in enumerate(all_columns) if c in MATERIAL_LABELS + DATA_FILE_LABELS]
     input_node_value = ''
     output_node_value = ''
     output_node_index = find_gt(node_cols, object_label_index)
@@ -494,7 +494,7 @@ def get_object_column_map(isatab_header, df_columns):
     :return: A list of column groups (also lists) splitting the header
     according to object type
     """
-    labels = _LABELS_MATERIAL_NODES + _LABELS_DATA_NODES
+    labels = MATERIAL_LABELS + DATA_FILE_LABELS
     if set(isatab_header) == set(df_columns):
         object_index = [i for i, x in enumerate(df_columns) if x in labels or 'Protocol REF' in x]
     else:
